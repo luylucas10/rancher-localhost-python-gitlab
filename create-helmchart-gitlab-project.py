@@ -132,8 +132,8 @@ def main():
                 with open(path.join(args.source_dir, ".cicd.yaml"), 'r') as file:
                     content = safe_load(file)
                     replacements = {
-                        "<<PROJECT_NAME>>": content.get("project", "default_project"),
-                        "<<APP_NAME>>": content.get("app", "default_app"),
+                        "<<PROJECT_NAME>>": content["project"],
+                        "<<APP_NAME>>": content["app"],
                     }
             except FileNotFoundError:
                 print("Erro: Arquivo .cicd.yaml não encontrado no diretório do código-fonte.")
