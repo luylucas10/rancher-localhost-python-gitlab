@@ -6,6 +6,12 @@ from argparse import ArgumentParser
 from yaml import safe_load
 
 def parse_arguments():
+    """
+    Analisa os argumentos da linha de comando.
+
+    Retorna:
+        argparse.Namespace: Argumentos da linha de comando analisados.
+    """
     parser = ArgumentParser(description="Script para criar projeto Helm Chart no GitLab, baseado em um modelo, utilizando o prefixo '--namespace' no caminho do projeto")
     parser.add_argument("--gitlab_url", "-g", required=True, help="URL da instância do GitLab")
     parser.add_argument("--user", "-u", required=True, help="Nome de usuário para autenticação Git")
@@ -20,9 +26,20 @@ def parse_arguments():
 
 args = parse_arguments()
 
+# Inicializa a instância do GitLab
 gl = Gitlab(args.gitlab_url, private_token=args.token)
 
 def get_or_create_group(group_name, parent_id=None):
+    """
+    Recupera ou cria um grupo no GitLab.
+
+    Args:
+        group_name (str): Nome do grupo.
+        parent_id (int, opcional): ID do grupo pai. Padrão é None.
+
+    Retorna:
+        gitlab.v4.objects.Group: O grupo recuperado ou criado.
+    """
     try:
         groups = gl.groups.list(search=group_name, all=True)
         for group in groups:
@@ -41,6 +58,15 @@ def get_or_create_group(group_name, parent_id=None):
     return group
 
 def create_project_in_target_namespace(source_url):
+    """
+    Cria um projeto no namespace de destino.
+
+    Args:
+        source_url (str): URL do projeto fonte.
+
+    Retorna:
+        tuple: O projeto criado e um booleano indicando se o projeto é novo.
+    """
     path_parts = source_url.replace(args.gitlab_url + "/", "").split("/")
     parent_id = None
     for part in [args.namespace] + path_parts[:-1]:
@@ -67,13 +93,30 @@ def create_project_in_target_namespace(source_url):
     return project, True  # Retorna True, pois o projeto foi criado e precisa ser populado
 
 def clone_repo(repo_url, target_dir, user, token):
-    """Clona um repositório privado usando o nome de usuário e token de acesso."""
+    """
+    Clona um repositório privado usando o nome de usuário e token de acesso.
+
+    Args:
+        repo_url (str): URL do repositório a ser clonado.
+        target_dir (str): Diretório para clonar o repositório.
+        user (str): Nome de usuário para autenticação.
+        token (str): Token de acesso para autenticação.
+
+    Retorna:
+        git.Repo: O repositório clonado.
+    """
     # Insere o nome de usuário e token na URL para autenticação
     auth_url = repo_url.replace("https://", f"https://{user}:{token}@")
     return Repo.clone_from(auth_url, target_dir)
 
 def commit_and_push_changes(repo_dir, commit_message):
-    """Faz commit e push das mudanças no repositório."""
+    """
+    Faz commit e push das mudanças no repositório.
+
+    Args:
+        repo_dir (str): Diretório do repositório.
+        commit_message (str): Mensagem do commit.
+    """
     # Abre o repositório clonado
     repo = Repo(repo_dir)
 
@@ -88,7 +131,13 @@ def commit_and_push_changes(repo_dir, commit_message):
     origin.push()
 
 def replace_tags(file_path, replacements):
-    """Substitui as tags no arquivo especificado."""
+    """
+    Substitui as tags no arquivo especificado.
+
+    Args:
+        file_path (str): Caminho para o arquivo.
+        replacements (dict): Dicionário de tags e seus valores de substituição.
+    """
     with open(file_path, 'r') as file:
         content = file.read()
 
@@ -99,7 +148,13 @@ def replace_tags(file_path, replacements):
         file.write(content)
 
 def replace_tags_in_directory(directory, replacements):
-    """Substitui tags em todos os arquivos do diretório."""
+    """
+    Substitui tags em todos os arquivos do diretório especificado.
+
+    Args:
+        directory (str): Caminho para o diretório.
+        replacements (dict): Dicionário de tags e seus valores de substituição.
+    """
     for root, _, files in walk(directory):
         for file_name in files:
             if file_name.endswith(".yaml"):
@@ -107,6 +162,9 @@ def replace_tags_in_directory(directory, replacements):
                 replace_tags(file_path, replacements)
 
 def main():
+    """
+    Função principal para criar o projeto e populá-lo com templates, se necessário.
+    """
     # Criação do projeto e verificação se é necessário popular com templates
     project, is_new_project = create_project_in_target_namespace(args.source_project)
 
